@@ -1031,6 +1031,30 @@ function getLayerDetails(args) {
     }
 }
 
+// --- deleteComposition: remove a composition from the project ---
+function deleteComposition(args) {
+    try {
+        var compName = args.compName || "";
+        var compIndex = args.compIndex;
+        var target = null;
+        if (compName) {
+            for (var i = 1; i <= app.project.numItems; i++) {
+                var it = app.project.item(i);
+                if (it instanceof CompItem && it.name === compName) { target = it; break; }
+            }
+        } else if (compIndex !== undefined && compIndex !== null) {
+            var it2 = app.project.item(compIndex);
+            if (it2 && it2 instanceof CompItem) { target = it2; }
+        }
+        if (!target) { throw new Error("Composition not found"); }
+        var nm = target.name;
+        target.remove();
+        return JSON.stringify({ status: "success", message: "Composition deleted", name: nm }, null, 2);
+    } catch (error) {
+        return JSON.stringify({ status: "error", message: error.toString() }, null, 2);
+    }
+}
+
 // --- setLayerProperties (modified to handle text properties) ---
 function setLayerProperties(args) {
     try {
@@ -2185,6 +2209,11 @@ function executeCommand(command, args) {
                 logToPanel("Calling moveLayer function...");
                 result = moveLayer(args);
                 logToPanel("Returned from moveLayer.");
+                break;
+            case "deleteComposition":
+                logToPanel("Calling deleteComposition function...");
+                result = deleteComposition(args);
+                logToPanel("Returned from deleteComposition.");
                 break;
             case "importFootage":
                 logToPanel("Calling importFootage function...");

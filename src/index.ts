@@ -208,7 +208,8 @@ server.tool(
       "applyTrimPaths",
       "addTextAnimator",
       "saveProject",
-      "getLayerDetails"
+      "getLayerDetails",
+      "deleteComposition"
     ];
     
     if (!allowedScripts.includes(script)) {
@@ -1119,6 +1120,39 @@ server.tool(
           {
             type: "text",
             text: `Error queuing get-layer-details: ${String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+);
+
+// Add a tool for deleting a composition from the project
+server.tool(
+  "delete-composition",
+  "Delete a composition from the project (by name or 1-based project item index).",
+  {
+    compName: z.string().optional().describe("Name of the composition to delete (use this or compIndex)."),
+    compIndex: z.number().int().positive().optional().describe("1-based project item index of the composition (use this or compName).")
+  },
+  async (params) => {
+    try {
+      writeCommandFile("deleteComposition", params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command 'delete-composition' has been queued. Use the "get-results" tool after a few seconds to check results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error queuing delete-composition: ${String(error)}`
           }
         ],
         isError: true
