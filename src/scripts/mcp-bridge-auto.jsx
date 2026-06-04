@@ -970,13 +970,16 @@ function addTextAnimator(args) {
 
         var selectors = animator.property("ADBE Text Selectors");
         var sel = selectors.addProperty("ADBE Text Selector");
-        var offsetProp = sel.property("ADBE Text Percent Offset");
         if (args.revealDuration) {
+            // Reveal left-to-right: animate the Range Selector Start from 0% to 100%.
+            // With the animator's Opacity = 0 (selected chars hidden), this makes the
+            // hidden selection retreat left-to-right, ending with ALL characters visible.
             var st = (args.startTime !== undefined) ? args.startTime : 0;
-            offsetProp.setValueAtTime(st, -100);
-            offsetProp.setValueAtTime(st + args.revealDuration, 0);
+            var startProp = sel.property("ADBE Text Percent Start");
+            startProp.setValueAtTime(st, 0);
+            startProp.setValueAtTime(st + args.revealDuration, 100);
         } else if (args.offset !== undefined && args.offset !== null) {
-            offsetProp.setValue(args.offset);
+            sel.property("ADBE Text Percent Offset").setValue(args.offset);
         }
         return JSON.stringify({ status: "success", message: "Text animator added", layer: layer.name, animator: animator.name }, null, 2);
     } catch (error) {
