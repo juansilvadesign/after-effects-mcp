@@ -474,7 +474,10 @@ function saveFrame(args) {
 
         // saveFrameToPng renders the comp at the given time (seconds) to a PNG file
         comp.saveFrameToPng(time, outFile);
-        if (!outFile.exists) {
+        // Re-stat with a FRESH File object: ExtendScript caches File.exists on the
+        // original object, which was created before the file existed.
+        var writtenFile = new File(outFile.fsName);
+        if (!writtenFile.exists) {
             throw new Error("saveFrameToPng reported no error but the output file was not created: " + outFile.fsName);
         }
 
@@ -853,10 +856,11 @@ function renderComposition(args) {
         }
         om.file = new File(args.outPath);
         app.project.renderQueue.render(); // blocking: freezes AE until the render finishes
-        var savedFile = om.file;
-        var savedPath = savedFile.fsName;
+        var savedPath = om.file.fsName;
         try { rqItem.remove(); } catch (er) {}
-        if (!savedFile.exists) {
+        // Re-stat with a fresh File object (ExtendScript caches File.exists).
+        var verifyFile = new File(savedPath);
+        if (!verifyFile.exists) {
             throw new Error("Render reported complete but the output file was not created: " + savedPath);
         }
         var renderResult = { status: "success", message: "Render complete", path: savedPath, comp: comp.name };
