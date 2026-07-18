@@ -1062,6 +1062,142 @@ function deleteComposition(args) {
     }
 }
 
+// ===== Community-contributed bridge functions (ported into this bundle) ==========
+// removeKeyframe — ported from PR #28 by @dellis23
+//   https://github.com/Dakkshin/after-effects-mcp/pull/28
+// getRendererInfo / setRenderer — ported from PR #25 by @Boke-kun (elias)
+//   https://github.com/Dakkshin/after-effects-mcp/pull/25
+
+// --- removeKeyframe: remove keyframe(s) by time, 1-based key index, or all ---
+function removeKeyframe(args) {
+    try {
+        var compIndex = args.compIndex;
+        var layerIndex = args.layerIndex;
+        var propertyName = args.propertyName;
+        var timeInSeconds = args.timeInSeconds;
+
+        // Find comp (same logic as setLayerKeyframe)
+        var comp = null;
+        if (compIndex === 0 || compIndex === undefined || compIndex === null) {
+            if (app.project.activeItem instanceof CompItem) { comp = app.project.activeItem; }
+        } else {
+            comp = app.project.items[compIndex];
+        }
+        if (!comp || !(comp instanceof CompItem)) {
+            return JSON.stringify({ success: false, message: "Composition not found" });
+        }
+
+        var layer = comp.layers[layerIndex];
+        if (!layer) {
+            return JSON.stringify({ success: false, message: "Layer not found at index " + layerIndex });
+        }
+
+        // Find property (same search logic as setLayerKeyframe)
+        var transformGroup = layer.property("Transform");
+        var property = transformGroup ? transformGroup.property(propertyName) : null;
+        if (!property) {
+            if (layer.property("Effects") && layer.property("Effects").property(propertyName)) {
+                property = layer.property("Effects").property(propertyName);
+            }
+            if (!property && layer.property("Effects")) {
+                var effects = layer.property("Effects");
+                for (var ei = 1; ei <= effects.numProperties; ei++) {
+                    try {
+                        var subProp = effects.property(ei).property(propertyName);
+                        if (subProp) { property = subProp; break; }
+                    } catch (e2) {}
+                }
+            }
+            if (!property) {
+                return JSON.stringify({ success: false, message: "Property '" + propertyName + "' not found" });
+            }
+        }
+
+        if (property.numKeys === 0) {
+            return JSON.stringify({ success: false, message: "Property has no keyframes" });
+        }
+
+        var keyIndex = args.keyIndex; // 1-based keyframe index
+        var removeAll = args.removeAll || false;
+
+        if (removeAll) {
+            // Remove all keyframes (iterate backwards)
+            var count = property.numKeys;
+            for (var ki = count; ki >= 1; ki--) {
+                property.removeKey(ki);
+            }
+            return JSON.stringify({ success: true, message: "Removed all " + count + " keyframes from '" + propertyName + "' on layer '" + layer.name + "'" });
+        } else if (keyIndex !== undefined && keyIndex !== null) {
+            // Remove by keyframe index
+            if (keyIndex < 1 || keyIndex > property.numKeys) {
+                return JSON.stringify({ success: false, message: "Key index " + keyIndex + " out of range (1 to " + property.numKeys + ")" });
+            }
+            var removedTime = property.keyTime(keyIndex);
+            property.removeKey(keyIndex);
+            return JSON.stringify({ success: true, message: "Keyframe " + keyIndex + " removed at " + removedTime + "s from '" + propertyName + "' on layer '" + layer.name + "'" });
+        } else if (timeInSeconds !== undefined && timeInSeconds !== null) {
+            // Remove by time (nearest match within tolerance)
+            var nearestIdx = property.nearestKeyIndex(timeInSeconds);
+            var nearestTime = property.keyTime(nearestIdx);
+            if (Math.abs(nearestTime - timeInSeconds) < 0.05) {
+                property.removeKey(nearestIdx);
+                return JSON.stringify({ success: true, message: "Keyframe removed at " + nearestTime + "s from '" + propertyName + "' on layer '" + layer.name + "'" });
+            } else {
+                return JSON.stringify({ success: false, message: "No keyframe found at " + timeInSeconds + "s (nearest is at " + nearestTime + "s)" });
+            }
+        } else {
+            return JSON.stringify({ success: false, message: "Must specify timeInSeconds, keyIndex, or removeAll" });
+        }
+    } catch (e) {
+        return JSON.stringify({ success: false, message: "Error: " + e.toString() });
+    }
+}
+
+// --- getRendererInfo: report a comp's current and available 3D renderers ---
+function getRendererInfo(args) {
+    try {
+        var compIndex = args.compIndex || 1;
+        var comp = app.project.item(compIndex);
+        if (!(comp instanceof CompItem)) throw new Error("Item " + compIndex + " is not a composition");
+        var renderers = [];
+        try {
+            var rendererList = comp.renderers;
+            for (var i = 0; i < rendererList.length; i++) {
+                renderers.push(rendererList[i]);
+            }
+        } catch (e) {
+            // Fallback: known renderer names
+            renderers = ["ADBE Ernst", "ADBE Advanced 3d"];
+        }
+        return JSON.stringify({
+            status: "success",
+            message: "Renderer info retrieved",
+            currentRenderer: comp.renderer,
+            availableRenderers: renderers,
+            rendererDescriptions: {
+                "ADBE Ernst": "Classic 3D renderer",
+                "ADBE Advanced 3d": "Cinema 4D / Advanced 3D renderer"
+            }
+        }, null, 2);
+    } catch (e) { return JSON.stringify({ status: "error", message: e.toString() }, null, 2); }
+}
+
+// --- setRenderer: set a comp's 3D renderer by match name ---
+function setRenderer(args) {
+    try {
+        var compIndex = args.compIndex || 1;
+        var renderer = args.renderer || "ADBE Ernst";
+        var comp = app.project.item(compIndex);
+        if (!(comp instanceof CompItem)) throw new Error("Item " + compIndex + " is not a composition");
+        var oldRenderer = comp.renderer;
+        comp.renderer = renderer;
+        return JSON.stringify({
+            status: "success", message: "Renderer set from '" + oldRenderer + "' to '" + renderer + "'",
+            composition: { name: comp.name, renderer: comp.renderer }
+        }, null, 2);
+    } catch (e) { return JSON.stringify({ status: "error", message: e.toString() }, null, 2); }
+}
+
 // --- setLayerProperties (modified to handle text properties) ---
 function setLayerProperties(args) {
     try {
@@ -2301,6 +2437,21 @@ function executeCommand(command, args) {
                 logToPanel("Calling getLayerDetails function...");
                 result = getLayerDetails(args);
                 logToPanel("Returned from getLayerDetails.");
+                break;
+            case "removeKeyframe":
+                logToPanel("Calling removeKeyframe function...");
+                result = removeKeyframe(args);
+                logToPanel("Returned from removeKeyframe.");
+                break;
+            case "getRendererInfo":
+                logToPanel("Calling getRendererInfo function...");
+                result = getRendererInfo(args);
+                logToPanel("Returned from getRendererInfo.");
+                break;
+            case "setRenderer":
+                logToPanel("Calling setRenderer function...");
+                result = setRenderer(args);
+                logToPanel("Returned from setRenderer.");
                 break;
             default:
                 result = JSON.stringify({ error: "Unknown command: " + command });

@@ -1676,6 +1676,96 @@ server.tool(
   }
 );
 
+// --- Community-contributed tools (ported into this bundle) ---
+// remove-keyframe: ported from PR #28 by @dellis23
+//   https://github.com/Dakkshin/after-effects-mcp/pull/28
+// get-renderer-info / set-renderer: ported from PR #25 by @Boke-kun (elias)
+//   https://github.com/Dakkshin/after-effects-mcp/pull/25
+
+server.tool(
+  "remove-keyframe",
+  "Remove keyframe(s) from a layer property — by time, by 1-based key index, or all of them.",
+  {
+    compIndex: z.number().int().describe("1-based composition index (0 or omitted = active composition)."),
+    layerIndex: z.number().int().positive().describe("1-based layer index within the composition."),
+    propertyName: z.string().describe("Property name, e.g. 'Position', 'Scale', 'Rotation', 'Opacity'."),
+    timeInSeconds: z.number().optional().describe("Remove the keyframe nearest this time (within 0.05s)."),
+    keyIndex: z.number().int().positive().optional().describe("Remove the keyframe at this 1-based index."),
+    removeAll: z.boolean().optional().describe("Remove every keyframe on the property.")
+  },
+  async (parameters) => {
+    try {
+      writeCommandFile("removeKeyframe", parameters);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command 'remove-keyframe' has been queued. Use the "get-results" tool after a few seconds to check results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error queuing remove-keyframe command: ${String(error)}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "get-renderer-info",
+  "Get a composition's current and available 3D renderers (e.g. Classic 3D vs Cinema 4D).",
+  {
+    compIndex: z.number().int().positive().optional().describe("1-based composition index (default 1).")
+  },
+  async (parameters) => {
+    try {
+      writeCommandFile("getRendererInfo", parameters);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command 'get-renderer-info' has been queued. Use the "get-results" tool after a few seconds to check results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error queuing get-renderer-info command: ${String(error)}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "set-renderer",
+  "Set a composition's 3D renderer by match name: 'ADBE Ernst' (Classic 3D) or 'ADBE Advanced 3d' (Cinema 4D).",
+  {
+    compIndex: z.number().int().positive().optional().describe("1-based composition index (default 1)."),
+    renderer: z.string().describe("Renderer match name: 'ADBE Ernst' or 'ADBE Advanced 3d'.")
+  },
+  async (parameters) => {
+    try {
+      writeCommandFile("setRenderer", parameters);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Command 'set-renderer' has been queued. Use the "get-results" tool after a few seconds to check results.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error queuing set-renderer command: ${String(error)}` }],
+        isError: true
+      };
+    }
+  }
+);
+
 // Start the MCP server
 async function main() {
   console.error("After Effects MCP Server starting...");

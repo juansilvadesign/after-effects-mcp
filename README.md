@@ -246,6 +246,9 @@ You can animate layers with:
 | `save-project`              | Save the current project               |
 | `get-layer-details`         | Inspect a layer (effects, blend, parent, 3D) |
 | `delete-composition`        | Delete a composition from the project  |
+| `remove-keyframe`           | Remove keyframe(s) by time, index, or all |
+| `get-renderer-info`         | List a comp's current & available 3D renderers |
+| `set-renderer`              | Set a comp's 3D renderer (Classic 3D / Cinema 4D) |
 
 > ℹ️ Output format for `render-video` is determined by the chosen output module template (or the default one); on some installs the default is H.264 (.mp4). `save-frame` is handy for letting an AI assistant inspect the rendered result.
 
